@@ -46,7 +46,7 @@ const register = async (body: RegisterUser) => {
   const accessToken = generateToken({ sub: user._id }, process.env.JWT_SECRET);
 
   return {
-    email: user.email,
+    ...sanitizeUser(user),
     accessToken,
   };
 };
@@ -57,7 +57,7 @@ const login = async (body: LoginUser) => {
   // Check if email is not existed
   const user = await User.findOne({ email });
   if (!user) {
-    throw new HttpException(HttpStatusCode.NOT_FOUND, 'User not found');
+    throw new HttpException(HttpStatusCode.NOT_FOUND, 'Email is not existed');
   }
 
   // Compare input password with stored password
@@ -81,7 +81,7 @@ const login = async (body: LoginUser) => {
   const accessToken = generateToken({ sub: user._id }, process.env.JWT_SECRET);
 
   return {
-    email: user.email,
+    ...sanitizeUser(user),
     accessToken,
   };
 };
@@ -144,7 +144,7 @@ const verifyMfa = async (otpToken: string, mfaToken: string) => {
   const accessToken = generateToken({ sub: user._id }, process.env.JWT_SECRET);
 
   return {
-    email: user.email,
+    ...sanitizeUser(user),
     accessToken,
   };
 };
