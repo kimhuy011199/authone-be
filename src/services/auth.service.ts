@@ -3,11 +3,16 @@ import jwt, { JwtPayload } from 'jsonwebtoken';
 import HttpStatusCode from '../shared/enums/httpStatus';
 import HttpException from '../shared/helpers/exception.helper';
 import User, { UserDocument, UserModel } from '../models/user.model';
-import { LoginUser, RegisterUser } from '../validations/auth.validation';
+import {
+  LoginUser,
+  RegisterUser,
+  UpdateUser,
+} from '../validations/auth.validation';
 import otpHelper from '../shared/helpers/otp.helper';
 import mailHelper from '../shared/helpers/mail.helper';
+import uploadHelper from '../shared/helpers/upload.helper';
 
-const TOKEN_EXPRIED_IN = '3000s';
+const TOKEN_EXPRIED_IN = '300000s';
 
 const register = async (body: RegisterUser) => {
   const { email, password, name } = body;
@@ -21,11 +26,8 @@ const register = async (body: RegisterUser) => {
     );
   }
 
-  // Generate salt
-  const salt = await bcrypt.genSalt(10);
-
-  // Hash password with generated salt
-  const hashedPassword = await bcrypt.hash(password, salt);
+  // Create hashed password
+  const hashedPassword = await generateHashedPassword(password);
 
   // Create mfa otp secret
   const mfaOtpSecret = otpHelper.generateSecret();
@@ -212,12 +214,108 @@ const verifyEmail = async (inputOtp: string, user: UserDocument) => {
   return sanitizeUser(updatedUser);
 };
 
+const updateUser = async (body: UpdateUser, user: UserDocument) => {
+  user.name = body.name;
+  const updatedUser = await user.save();
+
+  return sanitizeUser(updatedUser);
+};
+
+const updateAvatar = async (base64Img: string, user: UserDocument) => {
+  const imgUrl = await uploadHelper.uploadImg(base64Img);
+
+  // user.avatar = imgUrl;
+  // const updatedUser = await user.save();
+
+  // return sanitizeUser(updatedUser);
+  return imgUrl;
+};
+
+const updatePassword = async (body: any, user: UserDocument) => {
+  // Compare input password with stored password
+  const isCorrectPassword = await bcrypt.compare(
+    body.oldPassword,
+    user.password
+  );
+
+  if (!isCorrectPassword) {
+    throw new HttpException(
+      HttpStatusCode.BAD_REQUEST,
+      'Password does not match'
+    );
+  }
+
+  // Generate salt
+  const salt = await bcrypt.genSalt(10);
+
+  // Hash password with generated salt
+  const hashedPassword = await bcrypt.hash(body.password, salt);
+
+  user.password = hashedPassword;
+  const updatedUser = await user.save();
+
+  return sanitizeUser(updatedUser);
+};
+
+const requestResetPassword = async (email: string) => {
+  // Send mail url reset password
+  return '';
+};
+
+const verifyResetPassword = async (passwordToken: string) => {
+  // Verify password token
+  const decoded = jwt.verify(
+    passwordToken,
+    process.env.PASSWORD_SECRET
+  ) as JwtPayload;
+
+  if (!decoded) {
+    throw new HttpException(HttpStatusCode.BAD_REQUEST, 'Invalid token');
+  }
+
+  const user = await User.findById(decoded.sub);
+  const randomPassword = generateRandomPassword();
+  const hashedPassword = await generateHashedPassword(randomPassword);
+  user.password = hashedPassword;
+  const updatedUser = await user.save();
+
+  return sanitizeUser(updatedUser);
+};
+
 const generateToken = (
   payload: any,
   secret: string,
   expiresIn = TOKEN_EXPRIED_IN
 ) => {
   return jwt.sign(payload, secret, { expiresIn });
+};
+
+const generateHashedPassword = async (password: string) => {
+  // Generate salt
+  const salt = await bcrypt.genSalt(10);
+
+  // Hash password with generated salt
+  const hashedPassword = await bcrypt.hash(password, salt);
+
+  return hashedPassword;
+};
+
+const generateRandomPassword = (length = 8) => {
+  const uppercaseChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const lowercaseChars = 'abcdefghijklmnopqrstuvwxyz';
+  const numericChars = '0123456789';
+  const specialChars = '!@#$%^&*()-_=+[{]}\\|;:\'",<.>/?';
+
+  const allChars =
+    uppercaseChars + lowercaseChars + numericChars + specialChars;
+
+  let password = '';
+  for (let i = 0; i < length; i++) {
+    const randomIndex = Math.floor(Math.random() * allChars.length);
+    password += allChars[randomIndex];
+  }
+
+  return password;
 };
 
 const authService = {
@@ -229,6 +327,11 @@ const authService = {
   verifyMfa,
   sendVerifyEmail,
   verifyEmail,
+  updateUser,
+  updateAvatar,
+  updatePassword,
+  requestResetPassword,
+  verifyResetPassword,
 };
 
 export default authService;

@@ -47,6 +47,34 @@ const verifyEmail = async (req: AuthenticatedRequest, res: Response) => {
   res.status(HttpStatusCode.OK).json(data);
 };
 
+const updateUser = async (req: AuthenticatedRequest, res: Response) => {
+  const data = await authService.updateUser(req.body, req.user);
+  res.status(HttpStatusCode.OK).json(data);
+};
+
+const updateAvatar = async (req: AuthenticatedRequest, res: Response) => {
+  const { base64Img } = req.body;
+  const data = await authService.updateAvatar(base64Img, req.user);
+  res.status(HttpStatusCode.OK).json(data);
+};
+
+const updatePassword = async (req: AuthenticatedRequest, res: Response) => {
+  const data = await authService.updatePassword(req.body, req.user);
+  res.status(HttpStatusCode.OK).json(data);
+};
+
+const requestResetPassword = async (req: Request, res: Response) => {
+  const { email } = req.body;
+  const data = await authService.requestResetPassword(email);
+  res.status(HttpStatusCode.OK).json(data);
+};
+
+const verifyResetPassword = async (req: Request, res: Response) => {
+  const { passwordToken } = req.body;
+  const data = await authService.verifyResetPassword(passwordToken);
+  res.status(HttpStatusCode.OK).json(data);
+};
+
 const authController = {
   register,
   login,
@@ -56,6 +84,11 @@ const authController = {
   verifyMfa,
   sendVerifyEmail,
   verifyEmail,
+  updateUser,
+  updateAvatar,
+  updatePassword,
+  requestResetPassword,
+  verifyResetPassword,
 };
 
 export default authController;
