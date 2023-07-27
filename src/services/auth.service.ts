@@ -42,6 +42,7 @@ const register = async (body: RegisterUser) => {
     mfaOtpSecret,
     emailOtp: '',
     emailOtpExpiredTime: 0,
+    avatar: '',
   });
 
   // Generate access token
@@ -224,11 +225,10 @@ const updateUser = async (body: UpdateUser, user: UserDocument) => {
 const updateAvatar = async (base64Img: string, user: UserDocument) => {
   const imgUrl = await uploadHelper.uploadImg(base64Img);
 
-  // user.avatar = imgUrl;
-  // const updatedUser = await user.save();
+  user.avatar = imgUrl;
+  const updatedUser = await user.save();
 
-  // return sanitizeUser(updatedUser);
-  return imgUrl;
+  return sanitizeUser(updatedUser);
 };
 
 const updatePassword = async (body: any, user: UserDocument) => {
@@ -258,11 +258,24 @@ const updatePassword = async (body: any, user: UserDocument) => {
 };
 
 const requestResetPassword = async (email: string) => {
+  const existedUser = await User.findOne({ email });
+  if (!existedUser) {
+    throw new HttpException(
+      HttpStatusCode.NOT_FOUND,
+      'Email address not found'
+    );
+  }
+
+  const passwordToken = generateToken(
+    { sub: existedUser._id },
+    process.env.JWT_SECRET
+  );
   // Send mail url reset password
-  return '';
+
+  return passwordToken;
 };
 
-const verifyResetPassword = async (passwordToken: string) => {
+const verifyResetPassword = async (passwordToken: string, password: string) => {
   // Verify password token
   const decoded = jwt.verify(
     passwordToken,
@@ -274,8 +287,7 @@ const verifyResetPassword = async (passwordToken: string) => {
   }
 
   const user = await User.findById(decoded.sub);
-  const randomPassword = generateRandomPassword();
-  const hashedPassword = await generateHashedPassword(randomPassword);
+  const hashedPassword = await generateHashedPassword(password);
   user.password = hashedPassword;
   const updatedUser = await user.save();
 
@@ -298,24 +310,6 @@ const generateHashedPassword = async (password: string) => {
   const hashedPassword = await bcrypt.hash(password, salt);
 
   return hashedPassword;
-};
-
-const generateRandomPassword = (length = 8) => {
-  const uppercaseChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  const lowercaseChars = 'abcdefghijklmnopqrstuvwxyz';
-  const numericChars = '0123456789';
-  const specialChars = '!@#$%^&*()-_=+[{]}\\|;:\'",<.>/?';
-
-  const allChars =
-    uppercaseChars + lowercaseChars + numericChars + specialChars;
-
-  let password = '';
-  for (let i = 0; i < length; i++) {
-    const randomIndex = Math.floor(Math.random() * allChars.length);
-    password += allChars[randomIndex];
-  }
-
-  return password;
 };
 
 const authService = {

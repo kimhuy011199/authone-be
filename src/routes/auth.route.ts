@@ -4,12 +4,12 @@ import {
   emailSchema,
   loginSchema,
   otpSchema,
-  passwordTokenSchema,
   registerSchema,
   updateAvatarSchema,
   updatePasswordSchema,
   updateUserSchema,
   verifyMfaSchema,
+  verifyResetPasswordSchema,
 } from '../validations/auth.validation';
 import validate from '../middlewares/validation.middleware';
 import authenticateMiddleware from '../middlewares/auth.middleware';
@@ -67,7 +67,7 @@ authRoute.post(
 );
 authRoute.post(
   '/verify-reset-password',
-  validate(passwordTokenSchema),
+  validate(verifyResetPasswordSchema),
   authController.verifyResetPassword
 );
 

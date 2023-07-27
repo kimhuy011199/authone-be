@@ -70,8 +70,8 @@ const requestResetPassword = async (req: Request, res: Response) => {
 };
 
 const verifyResetPassword = async (req: Request, res: Response) => {
-  const { passwordToken } = req.body;
-  const data = await authService.verifyResetPassword(passwordToken);
+  const { passwordToken, password } = req.body;
+  const data = await authService.verifyResetPassword(passwordToken, password);
   res.status(HttpStatusCode.OK).json(data);
 };
 

@@ -9,6 +9,7 @@ export interface UserModel {
   mfaOtpSecret: string;
   emailOtp: string;
   emailOtpExpiredTime: number;
+  avatar: string;
 }
 
 export interface UserDocument extends Document, UserModel {}
@@ -46,6 +47,9 @@ const userSchema: Schema<UserDocument> = new Schema<UserDocument>(
     emailOtpExpiredTime: {
       type: Number,
       required: true,
+    },
+    avatar: {
+      type: String,
     },
   },
   {
