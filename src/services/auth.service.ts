@@ -175,7 +175,8 @@ const sendVerifyEmail = async (user: UserDocument) => {
   const { emailOtp, expiredTime } = otpHelper.generateEmailOtp();
 
   // Send mail
-  await mailHelper.sendMail(email, emailOtp);
+  const emailOptions = mailHelper.generateContentVerifyEmail(email, emailOtp);
+  await mailHelper.sendMail(emailOptions);
 
   // Update email otp and email otp expired time of user
   user.emailOtp = emailOtp;
@@ -268,9 +269,15 @@ const requestResetPassword = async (email: string) => {
 
   const passwordToken = generateToken(
     { sub: existedUser._id },
-    process.env.JWT_SECRET
+    process.env.PASSWORD_SECRET
   );
+
   // Send mail url reset password
+  const emailOptions = mailHelper.generateContentResetPassword(
+    email,
+    passwordToken
+  );
+  await mailHelper.sendMail(emailOptions);
 
   return passwordToken;
 };

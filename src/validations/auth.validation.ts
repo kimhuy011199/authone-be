@@ -18,31 +18,44 @@ export interface UpdateUser {
   name: string;
 }
 
-const authSchema = {
+const nameSchema = {
+  name: Joi.string().required(),
+};
+
+const emailSchema = {
   email: Joi.string().email().required(),
+};
+
+const passwordSchema = {
   password: Joi.string().min(8).regex(PASSWORD_AT_LEAST_1_NUMBER).required(),
 };
 
+const otpSchema = {
+  otp: Joi.string().length(OTP_LENGTH).required(),
+};
+
 export const registerSchema = Joi.object({
-  ...authSchema,
-  name: Joi.string().required(),
+  ...nameSchema,
+  ...emailSchema,
+  ...passwordSchema,
 });
 
 export const loginSchema = Joi.object({
-  ...authSchema,
+  ...emailSchema,
+  ...passwordSchema,
 });
 
-export const otpSchema = Joi.object({
-  otp: Joi.string().length(OTP_LENGTH).required(),
+export const verifyOtpSchema = Joi.object({
+  ...otpSchema,
 });
 
 export const verifyMfaSchema = Joi.object({
-  otp: Joi.string().length(OTP_LENGTH).required(),
+  ...otpSchema,
   mfaToken: Joi.string().required(),
 });
 
 export const updateUserSchema = Joi.object({
-  name: Joi.string().required(),
+  ...nameSchema,
 });
 
 export const updateAvatarSchema = Joi.object({
@@ -51,14 +64,14 @@ export const updateAvatarSchema = Joi.object({
 
 export const updatePasswordSchema = Joi.object({
   oldPassword: Joi.string().min(8).regex(PASSWORD_AT_LEAST_1_NUMBER).required(),
-  password: Joi.string().min(8).regex(PASSWORD_AT_LEAST_1_NUMBER).required(),
+  ...passwordSchema,
 });
 
-export const emailSchema = Joi.object({
-  email: Joi.string().email().required(),
+export const requestPasswordSchema = Joi.object({
+  ...emailSchema,
 });
 
 export const verifyResetPasswordSchema = Joi.object({
-  password: Joi.string().min(8).regex(PASSWORD_AT_LEAST_1_NUMBER).required(),
-  passwordToken: Joi.string().email().required(),
+  ...passwordSchema,
+  passwordToken: Joi.string().required(),
 });

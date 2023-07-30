@@ -3,17 +3,16 @@ import { OAuth2Client } from 'google-auth-library';
 
 const MAIL_HOST = 'smtp.gmail.com';
 const MAIL_PORT = 465;
+const CLIENT_URL = 'http://localhost:5173';
 
-const sendMail = async (email: string, emailOtp: string) => {
+interface MailOptionsInterface {
+  subject: string;
+  to: string;
+  html: string;
+}
+
+const sendMail = async (mailOptions: MailOptionsInterface) => {
   const transport = await createTransport();
-
-  const subject = '[AuthOne] Email Verification';
-  const content = `Your verification code is: ${emailOtp}`;
-  const mailOptions = {
-    to: email,
-    subject,
-    html: content,
-  };
 
   transport.sendMail(mailOptions);
 };
@@ -51,8 +50,35 @@ const getAccessToken = async () => {
   return accessTokenObj.token;
 };
 
+const generateContentVerifyEmail = (email: string, emailOtp: string) => {
+  const subject = '[AuthOne] Email Verification';
+  const content = `Your verification code is: ${emailOtp}`;
+  const mailOptions = {
+    to: email,
+    subject,
+    html: content,
+  };
+
+  return mailOptions;
+};
+
+const generateContentResetPassword = (email: string, passwordToken: string) => {
+  const url = `${CLIENT_URL}/new-password?pt=${passwordToken}`;
+  const subject = '[AuthOne] Reset Password';
+  const content = `Click on this link to create new password for your account: ${url}`;
+  const mailOptions = {
+    to: email,
+    subject,
+    html: content,
+  };
+
+  return mailOptions;
+};
+
 const mailHelper = {
   sendMail,
+  generateContentVerifyEmail,
+  generateContentResetPassword,
 };
 
 export default mailHelper;

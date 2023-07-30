@@ -1,15 +1,15 @@
 import express, { Router } from 'express';
 import authController from '../controllers/auth.controller';
 import {
-  emailSchema,
   loginSchema,
-  otpSchema,
   registerSchema,
+  verifyOtpSchema,
   updateAvatarSchema,
   updatePasswordSchema,
   updateUserSchema,
   verifyMfaSchema,
   verifyResetPasswordSchema,
+  requestPasswordSchema,
 } from '../validations/auth.validation';
 import validate from '../middlewares/validation.middleware';
 import authenticateMiddleware from '../middlewares/auth.middleware';
@@ -23,7 +23,7 @@ authRoute.get('/qrcode', authenticateMiddleware, authController.getQRCode);
 authRoute.put(
   '/toggle-mfa',
   authenticateMiddleware,
-  validate(otpSchema),
+  validate(verifyOtpSchema),
   authController.toggleMfa
 );
 authRoute.post(
@@ -39,7 +39,7 @@ authRoute.post(
 authRoute.post(
   '/verify-email',
   authenticateMiddleware,
-  validate(otpSchema),
+  validate(verifyOtpSchema),
   authController.verifyEmail
 );
 authRoute.put(
@@ -62,7 +62,7 @@ authRoute.put(
 );
 authRoute.post(
   '/request-reset-password',
-  validate(emailSchema),
+  validate(requestPasswordSchema),
   authController.requestResetPassword
 );
 authRoute.post(
