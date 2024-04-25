@@ -3,23 +3,26 @@ import Joi from 'joi';
 const PASSWORD_AT_LEAST_1_NUMBER = /^(?=.*?[0-9])/;
 const OTP_LENGTH = 6;
 
-interface Auth {
+export interface LoginUser {
   email: string;
   password: string;
 }
 
-export interface RegisterUser extends Auth {
-  name: string;
+export interface RegisterUser {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
 }
 
-export interface LoginUser extends Auth {}
-
 export interface UpdateUser {
-  name: string;
+  firstName: string;
+  lastName: string;
 }
 
 const nameSchema = {
-  name: Joi.string().required(),
+  firstName: Joi.string().required(),
+  lastName: Joi.string().required(),
 };
 
 const emailSchema = {
@@ -27,7 +30,11 @@ const emailSchema = {
 };
 
 const passwordSchema = {
-  password: Joi.string().min(8).regex(PASSWORD_AT_LEAST_1_NUMBER).required(),
+  password: Joi.string()
+    .min(8)
+    .max(32)
+    .regex(PASSWORD_AT_LEAST_1_NUMBER)
+    .required(),
 };
 
 const otpSchema = {
