@@ -11,11 +11,11 @@ import {
 import otpHelper from '../shared/helpers/otp.helper';
 import mailHelper from '../shared/helpers/mail.helper';
 import uploadHelper from '../shared/helpers/upload.helper';
-
-const TOKEN_EXPRIED_IN = '300000s';
+import { ACCESS_TOKEN_EXPRIED_IN } from '../shared/constants';
+import LoginType from '../shared/enums/loginType';
 
 const register = async (body: RegisterUser) => {
-  const { email, password, name } = body;
+  const { email, password, firstName, lastName } = body;
 
   // Check if email is existed
   const existedUser = await User.findOne({ email });
@@ -29,24 +29,33 @@ const register = async (body: RegisterUser) => {
   // Create hashed password
   const hashedPassword = await generateHashedPassword(password);
 
-  // Create mfa otp secret
+  // Create MFA otp secret
   const mfaOtpSecret = otpHelper.generateSecret();
 
   // Create and save user to DB
   const user = await User.create({
     email,
-    name,
+    firstName,
+    lastName,
     password: hashedPassword,
-    isEnabledMfa: false,
-    isVerifiedEmail: false,
-    mfaOtpSecret,
-    emailOtp: '',
-    emailOtpExpiredTime: 0,
     avatar: '',
+    loginType: LoginType.EMAIL_PASSWORD,
+    emailVerification: {
+      isVerified: false,
+      code: '',
+      expiredTime: 0,
+    },
+    mfa: {
+      isEnabled: false,
+      otpSecret: mfaOtpSecret,
+    },
   });
 
   // Generate access token
-  const accessToken = generateToken({ sub: user._id }, process.env.JWT_SECRET);
+  const accessToken = generateToken(
+    { sub: user._id },
+    process.env.ACCESS_TOKEN_SECRET
+  );
 
   return {
     ...sanitizeUser(user),
@@ -67,40 +76,35 @@ const login = async (body: LoginUser) => {
   const isCorrectPassword = await bcrypt.compare(password, user.password);
 
   if (!isCorrectPassword) {
-    throw new HttpException(
-      HttpStatusCode.BAD_REQUEST,
-      'Password does not match'
-    );
+    throw new HttpException(HttpStatusCode.BAD_REQUEST, 'Incorrect password');
   }
 
-  if (user.isEnabledMfa) {
-    // Generate MFA token
+  // Generate MFA token if MFA is enabled
+  if (user.mfa.isEnabled) {
     const mfaToken = generateToken({ sub: user._id }, process.env.MFA_SECRET);
-
     return { mfaToken };
+  } else {
+    // If not, generate access token and return customer infor
+    const accessToken = generateToken(
+      { sub: user._id },
+      process.env.ACCESS_TOKEN_SECRET
+    );
+
+    return {
+      ...sanitizeUser(user),
+      accessToken,
+    };
   }
-
-  // Generate access token
-  const accessToken = generateToken({ sub: user._id }, process.env.JWT_SECRET);
-
-  return {
-    ...sanitizeUser(user),
-    accessToken,
-  };
 };
 
 const sanitizeUser = (user: UserModel) => {
-  const {
-    password,
-    emailOtp,
-    emailOtpExpiredTime,
-    mfaOtpSecret,
-    __v,
-    ...returnUser
-  } = JSON.parse(JSON.stringify(user));
+  const { password, emailVerification, mfa, __v, ...basicUserInfo } =
+    JSON.parse(JSON.stringify(user));
+  const isVerifiedEmail = emailVerification.isVerified;
+  const isEnabledMfa = mfa.isEnabled;
 
   return {
-    user: returnUser,
+    user: { ...basicUserInfo, isVerifiedEmail, isEnabledMfa },
   };
 };
 
@@ -112,39 +116,42 @@ const getQRCode = async (email: string, mfaOtpSecret: string) => {
   };
 };
 
-const toggleMfa = async (otpToken: string, user: UserDocument) => {
-  const { mfaOtpSecret } = user;
-  const isValid = otpHelper.verifyOTPToken(otpToken, mfaOtpSecret);
+const toggleMfa = async (otp: string, user: UserDocument) => {
+  const { mfa } = user;
+  const isValid = otpHelper.verifyOtpToken(otp, mfa.otpSecret);
 
   if (!isValid) {
-    throw new HttpException(HttpStatusCode.BAD_REQUEST, 'OTP does not match');
+    throw new HttpException(HttpStatusCode.BAD_REQUEST, 'Invalid OTP');
   }
 
   // Toggle MFA
-  user.isEnabledMfa = !user.isEnabledMfa;
+  user.mfa.isEnabled = !user.mfa.isEnabled;
   const updatedUser = await user.save();
 
   return sanitizeUser(updatedUser);
 };
 
-const verifyMfa = async (otpToken: string, mfaToken: string) => {
+const verifyMfa = async (otp: string, mfaToken: string) => {
   // Verify MFA token
   const decoded = jwt.verify(mfaToken, process.env.MFA_SECRET) as JwtPayload;
 
   if (!decoded) {
-    throw new HttpException(HttpStatusCode.BAD_REQUEST, 'Invalid token');
+    throw new HttpException(HttpStatusCode.BAD_REQUEST, 'Invalid MFA token');
   }
 
   const user = await User.findById(decoded.sub);
 
-  // Verify otp token
-  const isValid = otpHelper.verifyOTPToken(otpToken, user.mfaOtpSecret);
+  // Verify otp
+  const isValid = otpHelper.verifyOtpToken(otp, user.mfa.otpSecret);
   if (!isValid) {
-    throw new HttpException(HttpStatusCode.BAD_REQUEST, 'OTP does not match');
+    throw new HttpException(HttpStatusCode.BAD_REQUEST, 'Invalid OTP');
   }
 
   // Generate access token
-  const accessToken = generateToken({ sub: user._id }, process.env.JWT_SECRET);
+  const accessToken = generateToken(
+    { sub: user._id },
+    process.env.ACCESS_TOKEN_SECRET
+  );
 
   return {
     ...sanitizeUser(user),
@@ -153,10 +160,10 @@ const verifyMfa = async (otpToken: string, mfaToken: string) => {
 };
 
 const sendVerifyEmail = async (user: UserDocument) => {
-  const { email, emailOtpExpiredTime, isVerifiedEmail } = user;
+  const { email, emailVerification } = user;
 
   // Check if account has been verified
-  if (isVerifiedEmail) {
+  if (emailVerification.isVerified) {
     throw new HttpException(
       HttpStatusCode.BAD_REQUEST,
       'Your account has been verified'
@@ -164,7 +171,9 @@ const sendVerifyEmail = async (user: UserDocument) => {
   }
 
   // Check time remaining
-  const timeRemaining = otpHelper.getRemaningTime(emailOtpExpiredTime);
+  const timeRemaining = otpHelper.getRemaningTime(
+    emailVerification.expiredTime
+  );
   if (timeRemaining > 0) {
     throw new HttpException(
       HttpStatusCode.BAD_REQUEST,
@@ -172,15 +181,19 @@ const sendVerifyEmail = async (user: UserDocument) => {
     );
   }
 
-  const { emailOtp, expiredTime } = otpHelper.generateEmailOtp();
+  const { emailVerificationCode, expiredTime } =
+    otpHelper.generateEmailVerificationCode();
 
   // Send mail
-  const emailOptions = mailHelper.generateContentVerifyEmail(email, emailOtp);
+  const emailOptions = mailHelper.generateVerifyEmailOptions(
+    email,
+    emailVerificationCode
+  );
   await mailHelper.sendMail(emailOptions);
 
   // Update email otp and email otp expired time of user
-  user.emailOtp = emailOtp;
-  user.emailOtpExpiredTime = expiredTime;
+  user.emailVerification.code = emailVerificationCode;
+  user.emailVerification.expiredTime = expiredTime;
   await user.save();
 
   return {
@@ -189,9 +202,9 @@ const sendVerifyEmail = async (user: UserDocument) => {
 };
 
 const verifyEmail = async (inputOtp: string, user: UserDocument) => {
-  const { emailOtp, emailOtpExpiredTime, isVerifiedEmail } = user;
+  const { emailVerification } = user;
 
-  if (isVerifiedEmail) {
+  if (emailVerification.isVerified) {
     throw new HttpException(
       HttpStatusCode.BAD_REQUEST,
       'Your account has been verified'
@@ -200,24 +213,25 @@ const verifyEmail = async (inputOtp: string, user: UserDocument) => {
 
   // Check if otp has been expired
   const currentTime = new Date().getTime();
-  if (emailOtpExpiredTime < currentTime) {
+  if (emailVerification.expiredTime < currentTime) {
     throw new HttpException(HttpStatusCode.BAD_REQUEST, 'OTP has been expired');
   }
 
   // Verify otp
-  if (inputOtp !== emailOtp) {
+  if (inputOtp !== emailVerification.code) {
     throw new HttpException(HttpStatusCode.BAD_REQUEST, 'OTP does not match');
   }
 
   // Verified email
-  user.isVerifiedEmail = true;
+  user.emailVerification.isVerified = true;
   const updatedUser = await user.save();
 
   return sanitizeUser(updatedUser);
 };
 
 const updateUser = async (body: UpdateUser, user: UserDocument) => {
-  user.name = body.name;
+  user.firstName = body.firstName;
+  user.lastName = body.lastName;
   const updatedUser = await user.save();
 
   return sanitizeUser(updatedUser);
@@ -273,7 +287,7 @@ const requestResetPassword = async (email: string) => {
   );
 
   // Send mail url reset password
-  const emailOptions = mailHelper.generateContentResetPassword(
+  const emailOptions = mailHelper.generateResetPasswordOptions(
     email,
     passwordToken
   );
@@ -304,7 +318,7 @@ const verifyResetPassword = async (passwordToken: string, password: string) => {
 const generateToken = (
   payload: any,
   secret: string,
-  expiresIn = TOKEN_EXPRIED_IN
+  expiresIn = ACCESS_TOKEN_EXPRIED_IN
 ) => {
   return jwt.sign(payload, secret, { expiresIn });
 };
