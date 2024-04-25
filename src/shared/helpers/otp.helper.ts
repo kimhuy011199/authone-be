@@ -9,11 +9,7 @@ const generateSecret = () => {
   return authenticator.generateSecret();
 };
 
-const generateOTPToken = (secret: string) => {
-  return authenticator.generate(secret);
-};
-
-const verifyOTPToken = (token: string, secret: string) => {
+const verifyOtpToken = (token: string, secret: string) => {
   return authenticator.verify({ token, secret });
 };
 
@@ -22,38 +18,37 @@ const generateQRCode = async (email: string, secret: string) => {
   return await qrcode.toDataURL(text);
 };
 
-const generateEmailOtp = (
+const generateEmailVerificationCode = (
   length = OTP_LENGTH,
   expiredAfter = DEFAULT_EXPIRED_TIME
 ) => {
   // Generate email OTP
   const charset = '0123456789';
-  let emailOtp = '';
+  let emailVerificationCode = '';
   for (let i = 0; i < length; i++) {
     const randomIndex = Math.floor(Math.random() * charset.length);
-    emailOtp += charset[randomIndex];
+    emailVerificationCode += charset[randomIndex];
   }
 
   // Generate expired time
   const currentTime = new Date().getTime();
   const expiredTime = currentTime + expiredAfter;
 
-  return { emailOtp, expiredTime };
+  return { emailVerificationCode, expiredTime };
 };
 
-const getRemaningTime = (emailOtpExpiredTime: number) => {
+const getRemaningTime = (emailVerificationCodeExpiredTime: number) => {
   const currentTime = new Date().getTime();
-  const timeRemaining = (emailOtpExpiredTime - currentTime) / 1000;
+  const timeRemaining = (emailVerificationCodeExpiredTime - currentTime) / 1000;
 
   return +timeRemaining.toString().split('.')[0];
 };
 
 const otpHelper = {
   generateSecret,
-  generateOTPToken,
-  verifyOTPToken,
+  verifyOtpToken,
   generateQRCode,
-  generateEmailOtp,
+  generateEmailVerificationCode,
   getRemaningTime,
 };
 
