@@ -19,8 +19,8 @@ const getMe = (req: AuthenticatedRequest, res: Response) => {
 };
 
 const getQRCode = async (req: AuthenticatedRequest, res: Response) => {
-  const { email, mfaOtpSecret } = req.user;
-  const data = await authService.getQRCode(email, mfaOtpSecret);
+  const { email, mfa } = req.user;
+  const data = await authService.getQRCode(email, mfa.otpSecret);
   res.status(HttpStatusCode.OK).json(data);
 };
 

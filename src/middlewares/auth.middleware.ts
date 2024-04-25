@@ -20,7 +20,7 @@ const authenticateMiddleware = async (
     );
   }
 
-  const decoded = jwt.verify(token, process.env.JWT_SECRET);
+  const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
 
   if (!decoded) {
     throw new HttpException(HttpStatusCode.FORBIDDEN, 'Invalid token');
