@@ -1,9 +1,22 @@
 import nodemailer from 'nodemailer';
 import { OAuth2Client } from 'google-auth-library';
+import { forgotPasswordMailTemplate } from '../constants/forgotPasswordMailTemplate';
+import { accountVerificationTemplate } from '../constants/accountVerificationTemplate';
+import { magicLinkMailTemplate } from '../constants/magicLinkMailTemplate';
+import {
+  ADMIN_EMAIL_ADDRESS,
+  CLIENT_APP_URL,
+  GOOGLE_MAILER_CLIENT_ID,
+  GOOGLE_MAILER_CLIENT_SECRET,
+  GOOGLE_MAILER_REFRESH_TOKEN,
+  MAIL_HOST,
+  MAIL_PORT,
+} from '../../config/env.config';
+import SMTPTransport from 'nodemailer/lib/smtp-transport';
 
-const MAIL_HOST = 'smtp.gmail.com';
-const MAIL_PORT = 465;
-const CLIENT_URL = 'http://localhost:5173';
+const ACCOUNT_VERIFICATION_SUBJECT = '[AuthOne] Account Verification';
+const RESET_PASSWORD_SUBJECT = '[AuthOne] Reset Password';
+const MAGIC_LINK_SUBJECT = '[AuthOne] Login With Magic Link';
 
 interface MailOptionsInterface {
   subject: string;
@@ -12,64 +25,77 @@ interface MailOptionsInterface {
 }
 
 const sendMail = async (mailOptions: MailOptionsInterface) => {
-  const transport = await createTransport();
-
-  transport.sendMail(mailOptions);
+  try {
+    const transport = await createTransport();
+    await transport.sendMail(mailOptions);
+  } catch (error) {
+    console.error(`Failed to send email: ${error}`);
+  }
 };
 
 const createTransport = async () => {
   const accessToken = await getAccessToken();
 
-  const transport = nodemailer.createTransport({
+  const transportOptions = {
     host: MAIL_HOST,
-    port: MAIL_PORT,
+    port: +MAIL_PORT,
     secure: true,
     auth: {
       type: 'OAuth2',
-      user: process.env.ADMIN_EMAIL_ADDRESS,
-      clientId: process.env.GOOGLE_MAILER_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_MAILER_CLIENT_SECRET,
-      refreshToken: process.env.GOOGLE_MAILER_REFRESH_TOKEN,
+      user: ADMIN_EMAIL_ADDRESS,
+      clientId: GOOGLE_MAILER_CLIENT_ID,
+      clientSecret: GOOGLE_MAILER_CLIENT_SECRET,
+      refreshToken: GOOGLE_MAILER_REFRESH_TOKEN,
       accessToken,
     },
-  });
+  } as SMTPTransport.Options;
 
+  const transport = nodemailer.createTransport(transportOptions);
   return transport;
 };
 
 const getAccessToken = async () => {
   const myOAuth2Client = new OAuth2Client(
-    process.env.GOOGLE_MAILER_CLIENT_ID,
-    process.env.GOOGLE_MAILER_CLIENT_SECRET
+    GOOGLE_MAILER_CLIENT_ID,
+    GOOGLE_MAILER_CLIENT_SECRET
   );
 
   myOAuth2Client.setCredentials({
-    refresh_token: process.env.GOOGLE_MAILER_REFRESH_TOKEN,
+    refresh_token: GOOGLE_MAILER_REFRESH_TOKEN,
   });
   const accessTokenObj = await myOAuth2Client.getAccessToken();
   return accessTokenObj.token;
 };
 
-const generateContentVerifyEmail = (email: string, emailOtp: string) => {
-  const subject = '[AuthOne] Email Verification';
-  const content = `Your verification code is: ${emailOtp}`;
+const generateMagicLinkOptions = (email: string, loginToken: string) => {
+  const url = `${CLIENT_APP_URL}/magic-link?token=${loginToken}`;
+
   const mailOptions = {
     to: email,
-    subject,
-    html: content,
+    subject: MAGIC_LINK_SUBJECT,
+    html: magicLinkMailTemplate(url),
   };
 
   return mailOptions;
 };
 
-const generateContentResetPassword = (email: string, passwordToken: string) => {
-  const url = `${CLIENT_URL}/new-password?pt=${passwordToken}`;
-  const subject = '[AuthOne] Reset Password';
-  const content = `Click on this link to create new password for your account: ${url}`;
+const generateVerifyEmailOptions = (email: string, emailOtp: string) => {
   const mailOptions = {
     to: email,
-    subject,
-    html: content,
+    subject: ACCOUNT_VERIFICATION_SUBJECT,
+    html: accountVerificationTemplate(emailOtp),
+  };
+
+  return mailOptions;
+};
+
+const generateResetPasswordOptions = (email: string, passwordToken: string) => {
+  const url = `${CLIENT_APP_URL}/new-password?token=${passwordToken}`;
+
+  const mailOptions = {
+    to: email,
+    subject: RESET_PASSWORD_SUBJECT,
+    html: forgotPasswordMailTemplate(url),
   };
 
   return mailOptions;
@@ -77,8 +103,9 @@ const generateContentResetPassword = (email: string, passwordToken: string) => {
 
 const mailHelper = {
   sendMail,
-  generateContentVerifyEmail,
-  generateContentResetPassword,
+  generateVerifyEmailOptions,
+  generateResetPasswordOptions,
+  generateMagicLinkOptions,
 };
 
 export default mailHelper;
