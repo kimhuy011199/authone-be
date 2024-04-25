@@ -1,15 +1,25 @@
 import mongoose, { Schema, Document } from 'mongoose';
+import LoginType from '../shared/enums/loginType';
 
 export interface UserModel {
+  // Basic information
   email: string;
-  name: string;
-  password: string;
-  isEnabledMfa: boolean;
-  isVerifiedEmail: boolean;
-  mfaOtpSecret: string;
-  emailOtp: string;
-  emailOtpExpiredTime: number;
+  firstName: string;
+  lastName: string;
   avatar: string;
+  password: string;
+  loginType: LoginType;
+  // Email verification
+  emailVerification: {
+    isVerified: boolean;
+    code: string;
+    expiredTime: number;
+  };
+  // Multifactor authentication (two-step verification)
+  mfa: {
+    isEnabled: boolean;
+    otpSecret: string;
+  };
 }
 
 export interface UserDocument extends Document, UserModel {}
@@ -21,35 +31,44 @@ const userSchema: Schema<UserDocument> = new Schema<UserDocument>(
       required: true,
       unique: true,
     },
-    name: {
+    firstName: {
       type: String,
-      required: true,
+    },
+    lastName: {
+      type: String,
     },
     password: {
       type: String,
       required: true,
     },
-    isEnabledMfa: {
-      type: Boolean,
-      required: true,
-    },
-    isVerifiedEmail: {
-      type: Boolean,
-      required: true,
-    },
-    mfaOtpSecret: {
-      type: String,
-      required: true,
-    },
-    emailOtp: {
-      type: String,
-    },
-    emailOtpExpiredTime: {
-      type: Number,
-      required: true,
-    },
     avatar: {
       type: String,
+    },
+    loginType: {
+      type: String,
+    },
+    emailVerification: {
+      isVerified: {
+        type: Boolean,
+        required: true,
+      },
+      code: {
+        type: String,
+      },
+      expiredTime: {
+        type: Number,
+        required: true,
+      },
+    },
+    mfa: {
+      isEnabled: {
+        type: Boolean,
+        required: true,
+      },
+      otpSecret: {
+        type: String,
+        required: true,
+      },
     },
   },
   {
