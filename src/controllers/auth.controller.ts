@@ -52,12 +52,6 @@ const updateUser = async (req: AuthenticatedRequest, res: Response) => {
   res.status(HttpStatusCode.OK).json(data);
 };
 
-const updateAvatar = async (req: AuthenticatedRequest, res: Response) => {
-  const { base64Img } = req.body;
-  const data = await authService.updateAvatar(base64Img, req.user);
-  res.status(HttpStatusCode.OK).json(data);
-};
-
 const updatePassword = async (req: AuthenticatedRequest, res: Response) => {
   const data = await authService.updatePassword(req.body, req.user);
   res.status(HttpStatusCode.OK).json(data);
@@ -85,7 +79,6 @@ const authController = {
   sendVerifyEmail,
   verifyEmail,
   updateUser,
-  updateAvatar,
   updatePassword,
   requestResetPassword,
   verifyResetPassword,
