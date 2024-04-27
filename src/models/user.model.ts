@@ -41,16 +41,14 @@ const userSchema: Schema<UserDocument> = new Schema<UserDocument>(
       type: String,
       required: true,
     },
-    avatar: {
-      type: String,
-    },
     loginType: {
       type: String,
+      enum: Object.values(LoginType),
     },
     emailVerification: {
       isVerified: {
         type: Boolean,
-        required: true,
+        default: false,
       },
       code: {
         type: String,
@@ -63,7 +61,7 @@ const userSchema: Schema<UserDocument> = new Schema<UserDocument>(
     mfa: {
       isEnabled: {
         type: Boolean,
-        required: true,
+        default: false,
       },
       otpSecret: {
         type: String,
