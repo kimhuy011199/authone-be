@@ -18,17 +18,21 @@ const generateQRCode = async (email: string, secret: string) => {
   return await qrcode.toDataURL(text);
 };
 
+/**
+ * Generates an email verification code.
+ *
+ * @param length - The length of the verification code. Defaults to OTP_LENGTH.
+ * @param expiredAfter - The expiration time of the verification code in milliseconds. Defaults to DEFAULT_EXPIRED_TIME.
+ * @returns An object containing the generated email verification code and its expiration time.
+ */
 const generateEmailVerificationCode = (
   length = OTP_LENGTH,
   expiredAfter = DEFAULT_EXPIRED_TIME
 ) => {
   // Generate email OTP
-  const charset = '0123456789';
-  let emailVerificationCode = '';
-  for (let i = 0; i < length; i++) {
-    const randomIndex = Math.floor(Math.random() * charset.length);
-    emailVerificationCode += charset[randomIndex];
-  }
+  const emailVerificationCode = Array.from({ length }, () =>
+    Math.floor(Math.random() * 10)
+  ).join('');
 
   // Generate expired time
   const currentTime = new Date().getTime();
