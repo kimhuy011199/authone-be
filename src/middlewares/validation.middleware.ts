@@ -1,8 +1,13 @@
 import { Request, Response, NextFunction } from 'express';
-import Joi, { Schema } from 'joi';
+import { Schema } from 'joi';
 import HttpException from '../shared/helpers/exception.helper';
 import HttpStatusCode from '../shared/enums/httpStatus';
 
+/**
+ * Middleware function to validate request body against a given schema.
+ * @param schema - The schema to validate against.
+ * @returns A middleware function that validates the request body.
+ */
 const validateMiddleware = (schema: Schema) => {
   return (req: Request, res: Response, next: NextFunction) => {
     const { error } = schema.validate(req.body);
