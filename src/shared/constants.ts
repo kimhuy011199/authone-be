@@ -1,1 +1,0 @@
-export const ACCESS_TOKEN_EXPRIED_IN = '300000s';
