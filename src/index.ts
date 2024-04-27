@@ -1,26 +1,25 @@
 import express from 'express';
 import cors from 'cors';
-import { config } from 'dotenv';
 import 'express-async-errors';
 import connectDB from './config/db.config';
 import router from './routes';
 import errorMiddleware from './middlewares/error.middleware';
-
-const port = process.env.PORT || 5001;
-
-config();
+import { PORT } from './config/env.config';
 
 connectDB();
 
-const app = express();
+export const app = express();
 
+// Middleware
 app.use(cors());
-
 app.use(express.json({ limit: '200kb' }));
 app.use(express.urlencoded({ extended: true }));
 
+// Routes
 app.use('/api', router);
 
+// Error handling middleware
 app.use(errorMiddleware);
 
-app.listen(port, () => console.log(`Server runs on port ${port}`));
+// Start the server
+app.listen(PORT, () => console.log(`Server runs on PORT ${PORT}`));
